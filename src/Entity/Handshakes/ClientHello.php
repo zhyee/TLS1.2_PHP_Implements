@@ -8,7 +8,6 @@ class ClientHello implements Serializable
 {
     public $TLSMajorVersion;
     public $TLSMinorVersion;
-    public $timestamp;
     public $randomStr;
     public $sessionId;
     public $cipherSuiteArr;
@@ -19,7 +18,6 @@ class ClientHello implements Serializable
     public function __construct (
         $TLSMajorVersion,
         $TLSMinorVersion,
-        $timestamp,
         $randomStr,
         $sessionId,
         array $cipherSuiteArr,
@@ -28,7 +26,6 @@ class ClientHello implements Serializable
     ) {
         $this->TLSMajorVersion = $TLSMajorVersion;
         $this->TLSMinorVersion = $TLSMinorVersion;
-        $this->timestamp = $timestamp;
         $this->randomStr = $randomStr;
         $this->sessionId = $sessionId;
         $this->cipherSuiteArr = $cipherSuiteArr;
@@ -38,7 +35,7 @@ class ClientHello implements Serializable
 
     public function toByteStream()
     {
-        $stream = pack('CCN', $this->TLSMajorVersion, $this->TLSMinorVersion, $this->timestamp);
+        $stream = pack('CC', $this->TLSMajorVersion, $this->TLSMinorVersion);
 
         $stream .= $this->randomStr;
 
@@ -86,12 +83,6 @@ class ClientHello implements Serializable
 
         $stream .= pack('n', $extensionLen);
         $stream .= $extensionStream;
-
-        echo 'clientHello: ' . PHP_EOL;
-        for ($i = 0; $i < strlen($stream); $i++) {
-            echo '\x' . dechex(ord($stream[$i]));
-        }
-        echo PHP_EOL;
 
         return $stream;
     }

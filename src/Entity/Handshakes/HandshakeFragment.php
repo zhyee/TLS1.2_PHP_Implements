@@ -41,11 +41,6 @@ class HandshakeFragment implements Serializable
         $bodyLength = strlen($body);
         $stream .= pack('CCC', ($bodyLength >> 16) & 0xff, ($bodyLength >> 8) & 0xff, $bodyLength & 0xff);
         $stream .= $body;
-        echo 'Handshakes: ' . strlen($stream) . PHP_EOL;
-        for ($i = 0; $i < strlen($stream); $i++) {
-            echo '\x' . dechex(ord($stream[$i]));
-        }
-        echo PHP_EOL;
         return $stream;
     }
 }

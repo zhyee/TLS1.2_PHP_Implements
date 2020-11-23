@@ -26,7 +26,7 @@ class TLSClient
      * TLSClient constructor.
      * @param $host
      * @param $port
-     * @throws SocketException
+     * @throws \Exception
      */
     public function __construct($host, $port)
     {
@@ -70,7 +70,7 @@ class TLSClient
     }
 
     /**
-     * @throws SocketException
+     * @throws \Exception
      */
     private function handshake()
     {
@@ -79,11 +79,11 @@ class TLSClient
     }
 
     /**
-     * @throws SocketException
+     * @throws \Exception
      */
     private function sendClientHello()
     {
-        $randomStr = substr(md5(uniqid()), 0, 28);
+        $randomStr = pack('N', time()) . random_bytes(28);  // 32字节的随机数
 
         $cipherSuiteArr = [
             [0, 0x2f], // TLS_RSA_WITH_AES_128_CBC_SHA
@@ -97,8 +97,7 @@ class TLSClient
         $extensionArr[] = $extension;
 
         $clientHello = new ClientHello(
-            3,3, time(), $randomStr, null,
-            $cipherSuiteArr, [0], $extensionArr
+            3,3, $randomStr, null, $cipherSuiteArr, [0], $extensionArr
         );
 
         $handshakeFragment = new HandshakeFragment(HandshakeFragment::HANDSHAKE_TYPE_CLIENT_HELLO, $clientHello);
@@ -120,16 +119,5 @@ class TLSClient
 }
 
 
-//$fp = fopen('/dev/urandom', 'r');
-//$randomStr = fread($fp, 28);
-//fclose($fp);
-
-$tlsClient = new TLSClient('101.200.35.175', 443);
-
-
-
-
-
-echo '------------------------------------' . PHP_EOL;
 
 
