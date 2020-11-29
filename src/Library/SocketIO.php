@@ -57,18 +57,19 @@ class SocketIO
                 if ($this->buffer === false) {
                     throw new SocketIOException('读取数据错误：' . socket_strerror(socket_last_error()), socket_last_error());
                 }
-                $this->bufferLen = strlen($this->buffer);
-                if ($this->bufferLen < $len) {
-                    $return .= $this->buffer;
-                    $this->buffer = '';
-                    $len -= $this->bufferLen;
-                    $this->bufferLen = 0;
-                } else {
-                    $return .= substr($this->buffer, 0, $len);
-                    $this->buffer = substr($this->buffer, $len);
-                    $this->bufferLen -= $len;
-                    return $return;
-                }
+            }
+
+            $this->bufferLen = strlen($this->buffer);
+            if ($this->bufferLen < $len) {
+                $return .= $this->buffer;
+                $this->buffer = '';
+                $len -= $this->bufferLen;
+                $this->bufferLen = 0;
+            } else {
+                $return .= substr($this->buffer, 0, $len);
+                $this->buffer = substr($this->buffer, $len);
+                $this->bufferLen -= $len;
+                return $return;
             }
         }
         return $return;

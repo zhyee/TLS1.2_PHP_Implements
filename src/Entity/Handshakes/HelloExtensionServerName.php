@@ -26,4 +26,14 @@ class HelloExtensionServerName implements Serializable
         $nameList .= $this->name;
         return pack('n', strlen($nameList)) . $nameList;
     }
+
+    public static function makeFromBytes($chars)
+    {
+        $pos = 0;
+        $totalLen = (ord($chars[$pos++]) << 8) | ord($chars[$pos++]);
+        $type = ord($chars[$pos++]);
+        $nameLen = (ord($chars[$pos++]) << 8) | ord($chars[$pos++]);
+        $name = substr($chars, $pos, $nameLen);
+        return new self($name);
+    }
 }

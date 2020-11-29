@@ -6,11 +6,6 @@ use TLS\Contract\Serializable;
 class TLSPlaintextRecord extends Record implements Serializable
 {
 
-    public $contentType;
-    public $TLSMajorVersion;
-    public $TLSMinorVersion;
-    public $fragment;
-
     public function __construct($contentType, $TLSMajorVersion, $TLSMinorVersion, Serializable $fragment)
     {
         $this->contentType = $contentType;

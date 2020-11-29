@@ -4,16 +4,11 @@ namespace TLS\Entity\Handshakes;
 
 use TLS\Contract\Serializable;
 
-class ClientHello implements Serializable
+class ClientHello extends BaseHello implements Serializable
 {
-    public $TLSMajorVersion;
-    public $TLSMinorVersion;
-    public $randomStr;
-    public $sessionId;
+
     public $cipherSuiteArr;
     public $compressionMethodArr;
-    public $extensionArr;
-
 
     public function __construct (
         $TLSMajorVersion,

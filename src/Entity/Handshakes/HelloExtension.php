@@ -53,4 +53,29 @@ class HelloExtension
         $this->type = $type;
         $this->data = $data;
     }
+
+    /**
+     * @param $chars
+     * @return HelloExtension
+     */
+    public static function makeFromBytes(&$chars)
+    {
+        $pos = 0;
+        $type = (ord($chars[$pos++]) << 8) | (ord($chars[$pos++]));
+        $length = (ord($chars[$pos++]) << 8) | (ord($chars[$pos++]));
+        $data = substr($chars, $pos, $length);
+        $pos += $length;
+
+        switch ($type) {
+            case self::TYPE_SERVER_NAME:
+                    $extensionData = HelloExtensionServerName::makeFromBytes($data);
+                    return new self($type, $extensionData);
+                break;
+
+            case self::TYPE_PADDING:
+                break;
+
+        }
+        $chars = substr($chars, $pos);
+    }
 }

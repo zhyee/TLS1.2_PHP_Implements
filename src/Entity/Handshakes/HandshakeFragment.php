@@ -31,6 +31,26 @@ class HandshakeFragment implements Serializable
         $this->body = $body;
     }
 
+    /**
+     * @param $fragmentBytes
+     * @return HandshakeFragment
+     */
+    public static function makeFromBytes($fragmentBytes)
+    {
+        $pos = 0;
+        $type = ord($fragmentBytes[$pos++]);
+        $length = (ord($fragmentBytes[$pos++]) << 16) | (ord($fragmentBytes[$pos++]) << 8) | (ord($fragmentBytes[$pos++]));
+        $bodyChars = substr($fragmentBytes, $pos, $length);
+
+        switch ($type) {
+            case self::HANDSHAKE_TYPE_SERVER_HELLO:
+                $body = ServerHello::makeFromBytes($bodyChars);
+                return new self($type, $body);
+                break;
+        }
+
+    }
+
     public function toByteStream()
     {
         $body = $this->body;

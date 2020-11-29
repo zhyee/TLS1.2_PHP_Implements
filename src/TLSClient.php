@@ -6,8 +6,12 @@ use TLS\Entity\Handshakes\ClientHello;
 use TLS\Entity\Handshakes\HandshakeFragment;
 use TLS\Entity\Handshakes\HelloExtension;
 use TLS\Entity\Handshakes\HelloExtensionServerName;
+use TLS\Entity\Handshakes\ServerHello;
+use TLS\Entity\Records\Alert;
 use TLS\Entity\Records\Record;
+use TLS\Entity\Records\RecordHead;
 use TLS\Entity\Records\TLSPlaintextRecord;
+use TLS\Exceptions\FragmentException;
 use TLS\Exceptions\SocketException;
 use TLS\Library\SocketIO;
 
@@ -16,6 +20,14 @@ class TLSClient extends SocketIO
 {
     public $host;
     public $port;
+
+    protected $clientRandomStr;
+
+    protected $serverRandomStr;
+
+    protected $cipherSuite;
+
+    protected $compressionMethod;
 
     /**
      * TLSClient constructor.
@@ -77,14 +89,42 @@ class TLSClient extends SocketIO
         $record = new TLSPlaintextRecord(Record::CONTENT_TYPE_HANDSHAKE, 3, 3, $handshakeFragment);
         $record = $record->toByteStream();
         $this->writeN($record, strlen($record));
+        $this->clientRandomStr = $randomStr;
     }
 
+    /**
+     * @return HandshakeFragment
+     * @throws Exceptions\AlertException
+     * @throws Exceptions\SocketIOException
+     * @throws FragmentException
+     */
     private function recvServerHello()
     {
-        $res = socket_read($this->socket, 8192);
+        $recordHead = new RecordHead($this->bufferedRead(5));
 
-        for($i = 0; $i < strlen($res); $i++) {
-            echo '\\x' . dechex(ord($res[$i]));
+        var_dump($recordHead);
+
+        switch ($recordHead->contentType) {
+            case Record::CONTENT_TYPE_ALERT:
+                if ($recordHead->fragmentLength != 2) {
+                    throw new FragmentException('Alert消息解析错误');
+                }
+                $alertChars = $this->bufferedRead($recordHead->fragmentLength);
+                $alert = new Alert(ord($alertChars[0]), ord($alertChars[1]));
+                $alert->throwsException();
+                break;
+            case Record::CONTENT_TYPE_HANDSHAKE:
+                $handShake = HandshakeFragment::makeFromBytes($this->bufferedRead($recordHead->fragmentLength));
+                if ($handShake->handshakeType == HandshakeFragment::HANDSHAKE_TYPE_SERVER_HELLO) {
+                    $serverHello = $handShake->body;
+                    if ($serverHello instanceof ServerHello) {
+                        $this->serverRandomStr = $serverHello->randomStr;
+                        $this->cipherSuite = $serverHello->cipherSuite;
+                        $this->compressionMethod = $serverHello->compressionMethod;
+                    }
+                }
+                return $handShake;
+                break;
         }
     }
 }
