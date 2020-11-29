@@ -72,7 +72,9 @@ class ClientHello implements Serializable
             $extensionStream .= $extensionData;
         }
 
-        // 补齐handshake数据包长度为512，handshake数据包本身有4字节的头部，所以clientHello补齐到508字节即可
+        // 补齐handshake数据包长度为512，handshake数据包本身有4字节的头部，所以clientHello补齐到508字节即可, 即 $streamLen + 2（存储所有扩展的长度和）+ $extensionLen = 508
+        // 所以补齐字节后 $streamLen + $extensionLen 应该为 506，同时每个扩展的头部需要占用4字节（2字节存储该扩展类型+2字节存储该扩展长度）
+        // 所以补齐前的 $streamLen + $extensionLen 不能超过502字节，否则补齐一个最短的padding扩展（4字节）也会超过506。
         if ($streamLen + $extensionLen <= 502) {
             $paddingLen = 502 - $streamLen - $extensionLen;
             $extensionStream .= pack('n', HelloExtension::TYPE_PADDING);

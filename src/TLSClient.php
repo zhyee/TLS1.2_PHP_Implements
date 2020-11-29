@@ -9,18 +9,13 @@ use TLS\Entity\Handshakes\HelloExtensionServerName;
 use TLS\Entity\Records\Record;
 use TLS\Entity\Records\TLSPlaintextRecord;
 use TLS\Exceptions\SocketException;
+use TLS\Library\SocketIO;
 
 
-class TLSClient
+class TLSClient extends SocketIO
 {
     public $host;
     public $port;
-
-    /**
-     * 连接服务器的socket
-     * @var resource
-     */
-    public $socket;
 
     /**
      * TLSClient constructor.
@@ -43,30 +38,6 @@ class TLSClient
         }
         $this->socket = $socket;
         $this->handshake();
-    }
-
-    /**
-     * @param $str
-     * @param $len
-     * @throws SocketException
-     */
-    private function writeN($str, $len)
-    {
-        $writeLen = 0;
-        do {
-            $n = socket_write($this->socket, $str, $len - $writeLen);
-            if ($n === false) {
-                $errCode = socket_last_error();
-                throw new SocketException('发送数据失败：' . socket_strerror($errCode), $errCode);
-            }
-            $writeLen += $n;
-            if ($writeLen >= $len) {
-                break;
-            }
-            if ($n > 0) {
-                $str = substr($str, $n);
-            }
-        } while (true);
     }
 
     /**
