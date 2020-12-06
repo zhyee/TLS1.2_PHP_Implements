@@ -1,7 +1,9 @@
 <?php
 namespace TLS\Entity\Records;
 
-class Record
+use TLS\Library\SocketIO;
+
+class Record extends SocketIO
 {
     const CONTENT_TYPE_CHANGE_CIPHER_SPEC = 20;
 
@@ -14,7 +16,7 @@ class Record
     public $contentType;
     public $TLSMajorVersion;
     public $TLSMinorVersion;
-    public $fragment;
-    public $fragmentLength;
+    public $body;
+    public $bodyLength;
 
 }

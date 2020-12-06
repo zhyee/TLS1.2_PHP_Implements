@@ -2,9 +2,11 @@
 
 namespace TLS\Entity\Handshakes;
 
-use TLS\Contract\Serializable;
+use TLS\Contracts\Resolvable;
+use TLS\Contracts\StringAble;
+use TLS\Entity\Algorithms\CipherSuite;
 
-class ClientHello extends BaseHello implements Serializable
+class ClientHello extends BaseHello implements StringAble,Resolvable
 {
 
     public $cipherSuiteArr;
@@ -28,7 +30,7 @@ class ClientHello extends BaseHello implements Serializable
         $this->extensionArr = $extensionArr;
     }
 
-    public function toByteStream()
+    public function toByteString()
     {
         $stream = pack('CC', $this->TLSMajorVersion, $this->TLSMinorVersion);
 
@@ -42,8 +44,8 @@ class ClientHello extends BaseHello implements Serializable
         }
 
         $stream .= pack('n', count($this->cipherSuiteArr) * 2);
-        foreach ($this->cipherSuiteArr as $cipherSuite) {
-            $stream .= pack('CC', (int)$cipherSuite[0], (int)$cipherSuite[1]);
+        foreach ($this->cipherSuiteArr as $cipherSuiteNo) {
+            $stream .= CipherSuite::packCipherSuiteNo($cipherSuiteNo);
         }
 
         $stream .= pack('C', count($this->compressionMethodArr));
@@ -58,8 +60,8 @@ class ClientHello extends BaseHello implements Serializable
         /** @var HelloExtension $extension */
         foreach ($this->extensionArr as $extension) {
             $extensionData = $extension->data;
-            if ($extensionData instanceof Serializable) {
-                $extensionData = $extensionData->toByteStream();
+            if ($extensionData instanceof StringAble) {
+                $extensionData = $extensionData->toByteString();
             }
             $extensionLen += 4 + strlen($extensionData);
             $extensionStream .= pack('n', $extension->type);
@@ -82,5 +84,20 @@ class ClientHello extends BaseHello implements Serializable
         $stream .= $extensionStream;
 
         return $stream;
+    }
+
+    public static function resolveFromSocket($socket)
+    {
+        // TODO: Implement resolveFromSocket() method.
+    }
+
+    /**
+     * 从字节流中解析出相应实体
+     * @param string $string
+     * @return self
+     */
+    public static function resolveFromString(&$string)
+    {
+        // TODO: Implement resolveFromString() method.
     }
 }

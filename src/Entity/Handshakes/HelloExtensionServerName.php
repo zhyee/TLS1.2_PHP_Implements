@@ -1,39 +1,69 @@
 <?php
 namespace TLS\Entity\Handshakes;
 
-use TLS\Contract\Serializable;
+use TLS\Contracts\Resolvable;
+use TLS\Contracts\StringAble;
+use TLS\Exceptions\ResolveException;
+use TLS\Library\SocketIO;
 
 /**
  * Server_Name extension
  * Class ServerNameHelloExtension
  * @see https://tools.ietf.org/html/rfc6066
  */
-class HelloExtensionServerName implements Serializable
+class HelloExtensionServerName implements StringAble,Resolvable
 {
     const TYPE_HOST_NAME = 0;
 
-    public $name;
+    public $nameList = [];
 
-    public function __construct($name)
+    public function addTypeAndName($type, $name)
     {
-        $this->name = $name;
+        $this->nameList[$type] = $name;
     }
 
-    public function toByteStream()
+    public function toByteString()
     {
-        $nameList = pack('C', self::TYPE_HOST_NAME);
-        $nameList .= pack('n', strlen($this->name));
-        $nameList .= $this->name;
-        return pack('n', strlen($nameList)) . $nameList;
+        $nameListStr = '';
+        foreach ($this->nameList as $type => $name) {
+            $nameListStr = pack('C', $type);
+            $nameListStr .= pack('n', strlen($name));
+            $nameListStr .= $name;
+        }
+        return pack('n', strlen($nameListStr)) . $nameListStr;
     }
 
-    public static function makeFromBytes($chars)
+    /**
+     * @param string $string
+     * @return self
+     * @throws ResolveException
+     */
+    public static function resolveFromString(&$string)
     {
         $pos = 0;
-        $totalLen = (ord($chars[$pos++]) << 8) | ord($chars[$pos++]);
-        $type = ord($chars[$pos++]);
-        $nameLen = (ord($chars[$pos++]) << 8) | ord($chars[$pos++]);
-        $name = substr($chars, $pos, $nameLen);
-        return new self($name);
+        $strLen = strlen($string);
+        $totalLen = (ord($string[$pos++]) << 8) | ord($string[$pos++]);
+        if ($totalLen != $strLen - 2) {
+            throw new ResolveException(self::class . ' 提供的字符串长度和解析长度不匹配');
+        }
+        $instance = new self();
+        while ($pos < $strLen) {
+            $type = ord($string[$pos++]);
+            $nameLen = (ord($string[$pos++]) << 8) | ord($string[$pos++]);
+            $name = substr($string, $pos, $nameLen);
+            $pos += $nameLen;
+            $instance->addTypeAndName($type, $name);
+        }
+        return $instance;
+    }
+
+    /**
+     * 从Socket中解析出相应实体
+     * @param SocketIO $socket
+     * @return self
+     */
+    public static function resolveFromSocket($socket)
+    {
+        // TODO: Implement resolveFromSocket() method.
     }
 }

@@ -1,26 +1,37 @@
 <?php
 namespace TLS\Entity\Handshakes;
 
-use TLS\Contract\Serializable;
+use TLS\Contracts\Resolvable;
+use TLS\Contracts\StringAble;
+use TLS\Entity\Algorithms\CipherSuite;
+use TLS\Exceptions\ResolveException;
+use TLS\Exceptions\SocketIOException;
+use TLS\Library\SocketIO;
 
-class ServerHello extends BaseHello implements Serializable
+class ServerHello extends BaseHello implements StringAble,Resolvable
 {
+
     /**
-     * @var array
+     * @var CipherSuite
      */
     public $cipherSuite;
 
     public $compressionMethod;
 
-    public static function makeFromBytes($fragmentChars)
-    {
 
+    /**
+     * @param string $string
+     * @return Resolvable|ServerHello
+     * @throws ResolveException
+     */
+    public static function resolveFromString(&$string)
+    {
         $pos = 0;
         $instance = new ServerHello();
-        $instance->TLSMajorVersion = ord($fragmentChars[$pos++]);
-        $instance->TLSMinorVersion = ord($fragmentChars[$pos++]);
+        $instance->TLSMajorVersion = ord($string[$pos++]);
+        $instance->TLSMinorVersion = ord($string[$pos++]);
 
-        $instance->randomStr = substr($fragmentChars, $pos, 32);
+        $instance->randomStr = substr($string, $pos, 32);
         $pos += 32;
 
         $instance->unixTimestamp = (ord($instance->randomStr[0]) << 24)
@@ -28,36 +39,43 @@ class ServerHello extends BaseHello implements Serializable
             | (ord($instance->randomStr[2]) << 8)
             | ord($instance->randomStr[3]);
 
-        $sessionIdLen = ord($fragmentChars[$pos++]);
+        $sessionIdLen = ord($string[$pos++]);
         if ($sessionIdLen > 0) {
-            $instance->sessionId = substr($fragmentChars, $pos, $sessionIdLen);
+            $instance->sessionId = substr($string, $pos, $sessionIdLen);
             $pos += $sessionIdLen;
         } else {
             $instance->sessionId = '';
         }
 
-        $instance->cipherSuite = [ord($fragmentChars[$pos++]), ord($fragmentChars[$pos++])];
+        $instance->cipherSuite = new CipherSuite(ord($string[$pos++]), ord($string[$pos++]));
 
-        $instance->compressionMethod = ord($fragmentChars[$pos++]);
+        $instance->compressionMethod = ord($string[$pos++]);
 
-        $length = strlen($fragmentChars);
+        $length = strlen($string);
 
         if ($length > $pos) {
-            $extensionLen = (ord($fragmentChars[$pos++]) << 8) | ord($fragmentChars[$pos++]);
-            $extensionChars = substr($fragmentChars, $pos, $extensionLen);
-            $pos += $extensionLen;
+            $extensionLen = (ord($string[$pos++]) << 8) | ord($string[$pos++]);
+            $extensionChars = substr($string, $pos, $extensionLen);
 
             while (strlen($extensionChars) > 0) {
-                $instance->extensionArr[] = HelloExtension::makeFromBytes($extensionChars);
+                $instance->extensionArr[] = HelloExtension::resolveFromSocket($extensionChars);
             }
         }
 
         return $instance;
     }
 
-    public function toByteStream()
+    /**
+     * @param SocketIO $socket
+     * @return void
+     */
+    public static function resolveFromSocket($socket)
+    {
+        // TODO: Implement resolveFromSocket() method.
+    }
+
+    public function toByteString()
     {
         // TODO: Implement toByteStream() method.
     }
-
 }

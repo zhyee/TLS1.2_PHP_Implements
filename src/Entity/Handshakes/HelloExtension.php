@@ -1,9 +1,12 @@
 <?php
 namespace TLS\Entity\Handshakes;
 
-use TLS\Contract\Serializable;
+use TLS\Contracts\Resolvable;
+use TLS\Contracts\StringAble;
+use TLS\Exceptions\ResolveException;
+use TLS\Library\SocketIO;
 
-class HelloExtension
+class HelloExtension implements Resolvable
 {
     /**
      * 推荐使用的扩展类型
@@ -48,27 +51,29 @@ class HelloExtension
     public $type;
     public $data;
 
-    public function __construct($type, Serializable $data)
+    public function __construct($type, StringAble $data)
     {
         $this->type = $type;
         $this->data = $data;
     }
 
     /**
-     * @param $chars
+     * @param string $string
      * @return HelloExtension
+     * @throws ResolveException
      */
-    public static function makeFromBytes(&$chars)
+    public static function resolveFromString(&$string)
     {
         $pos = 0;
-        $type = (ord($chars[$pos++]) << 8) | (ord($chars[$pos++]));
-        $length = (ord($chars[$pos++]) << 8) | (ord($chars[$pos++]));
-        $data = substr($chars, $pos, $length);
+        $type = (ord($string[$pos++]) << 8) | (ord($string[$pos++]));
+        $length = (ord($string[$pos++]) << 8) | (ord($string[$pos++]));
+        $extensionDataStr = substr($string, $pos, $length);
         $pos += $length;
+        $string = substr($string, $pos);
 
         switch ($type) {
             case self::TYPE_SERVER_NAME:
-                    $extensionData = HelloExtensionServerName::makeFromBytes($data);
+                    $extensionData = HelloExtensionServerName::resolveFromString($extensionDataStr);
                     return new self($type, $extensionData);
                 break;
 
@@ -76,6 +81,15 @@ class HelloExtension
                 break;
 
         }
-        $chars = substr($chars, $pos);
+    }
+
+    /**
+     * 从Socket中解析出相应实体
+     * @param SocketIO $socket
+     * @return self
+     */
+    public static function resolveFromSocket($socket)
+    {
+        // TODO: Implement resolveFromSocket() method.
     }
 }

@@ -12,18 +12,26 @@ class SocketIO
      * 连接服务器的socket
      * @var resource
      */
-    protected $socket;
+    protected $socket = null;
 
     private $buffer = '';
 
     private $bufferLen = 0;
 
     /**
+     * @param resource $socket
+     */
+    public function setSocket($socket)
+    {
+        $this->socket = $socket;
+    }
+
+    /**
      * @param $str
      * @param $len
      * @throws SocketException
      */
-    protected function writeN(&$str, $len)
+    public function writeN(&$str, $len)
     {
         $writeLen = 0;
         do {
@@ -48,7 +56,7 @@ class SocketIO
      * @return string
      * @throws SocketIOException
      */
-    protected function bufferedRead($len)
+    public function bufferedRead($len)
     {
         $return = '';
         while ($len > 0) {
@@ -80,7 +88,7 @@ class SocketIO
      * @return int
      * @throws SocketIOException
      */
-    protected function bufferedReadByte()
+    public function bufferedReadByte()
     {
         return ord($this->bufferedRead(1));
     }

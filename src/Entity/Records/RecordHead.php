@@ -19,6 +19,6 @@ class RecordHead extends Record
         $this->contentType = ord($headChars[0]);
         $this->TLSMajorVersion = ord($headChars[1]);
         $this->TLSMinorVersion = ord($headChars[2]);
-        $this->fragmentLength = (ord($headChars[3]) << 8) + ord($headChars[4]);
+        $this->bodyLength = (ord($headChars[3]) << 8) + ord($headChars[4]);
     }
 }

@@ -2,16 +2,20 @@
 
 namespace TLS;
 
+use Exception;
+use TLS\Entity\Algorithms\CipherSuite;
 use TLS\Entity\Handshakes\ClientHello;
-use TLS\Entity\Handshakes\HandshakeFragment;
+use TLS\Entity\Handshakes\Handshake;
 use TLS\Entity\Handshakes\HelloExtension;
 use TLS\Entity\Handshakes\HelloExtensionServerName;
+use TLS\Entity\Handshakes\ServerCertificate;
 use TLS\Entity\Handshakes\ServerHello;
 use TLS\Entity\Records\Alert;
 use TLS\Entity\Records\Record;
 use TLS\Entity\Records\RecordHead;
 use TLS\Entity\Records\TLSPlaintextRecord;
 use TLS\Exceptions\FragmentException;
+use TLS\Exceptions\ResolveException;
 use TLS\Exceptions\SocketException;
 use TLS\Library\SocketIO;
 
@@ -25,6 +29,9 @@ class TLSClient extends SocketIO
 
     protected $serverRandomStr;
 
+    /**
+     * @var CipherSuite
+     */
     protected $cipherSuite;
 
     protected $compressionMethod;
@@ -33,7 +40,7 @@ class TLSClient extends SocketIO
      * TLSClient constructor.
      * @param $host
      * @param $port
-     * @throws \Exception
+     * @throws Exception
      */
     public function __construct($host, $port)
     {
@@ -48,83 +55,93 @@ class TLSClient extends SocketIO
             $errCode = socket_last_error();
             throw new SocketException('连接服务器失败：' . socket_strerror($errCode), $errCode);
         }
-        $this->socket = $socket;
+        $this->setSocket($socket);
         $this->handshake();
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     private function handshake()
     {
         $this->sendClientHello();
         $this->recvServerHello();
+        $this->recvServerCertificate();
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     private function sendClientHello()
     {
         $randomStr = pack('N', time()) . random_bytes(28);  // 32字节的随机数
 
         $cipherSuiteArr = [
-            [0, 0x2f], // TLS_RSA_WITH_AES_128_CBC_SHA
-            [0, 0x35], // TLS_RSA_WITH_AES_256_CBC_SHA
-            [0, 0x3c], // TLS_RSA_WITH_AES_128_CBC_SHA256
-            [0, 0x3d], // TLS_RSA_WITH_AES_256_CBC_SHA256
+            CipherSuite::TLS_RSA_WITH_AES_128_CBC_SHA,
+            CipherSuite::TLS_RSA_WITH_AES_256_CBC_SHA,
+            CipherSuite::TLS_RSA_WITH_AES_128_CBC_SHA256,
+            CipherSuite::TLS_RSA_WITH_AES_256_CBC_SHA256,
         ];
 
         $extensionArr = [];
-        $extension = new HelloExtension(HelloExtension::TYPE_SERVER_NAME, new HelloExtensionServerName('101.200.35.175'));
+        $extServerName = new HelloExtensionServerName();
+        $extServerName->addTypeAndName(HelloExtensionServerName::TYPE_HOST_NAME, '101.200.35.175');
+        $extension = new HelloExtension(HelloExtension::TYPE_SERVER_NAME, $extServerName);
         $extensionArr[] = $extension;
 
         $clientHello = new ClientHello(
             3,3, $randomStr, null, $cipherSuiteArr, [0], $extensionArr
         );
 
-        $handshakeFragment = new HandshakeFragment(HandshakeFragment::HANDSHAKE_TYPE_CLIENT_HELLO, $clientHello);
-
+        $handshakeFragment = new Handshake(Handshake::HANDSHAKE_TYPE_CLIENT_HELLO, $clientHello);
 
         $record = new TLSPlaintextRecord(Record::CONTENT_TYPE_HANDSHAKE, 3, 3, $handshakeFragment);
-        $record = $record->toByteStream();
+
+        $record = $record->toByteString();
         $this->writeN($record, strlen($record));
         $this->clientRandomStr = $randomStr;
     }
 
     /**
-     * @return HandshakeFragment
-     * @throws Exceptions\AlertException
+     * @return ServerHello
      * @throws Exceptions\SocketIOException
-     * @throws FragmentException
+     * @throws ResolveException
+     * @throws Exceptions\AlertException
      */
     private function recvServerHello()
     {
-        $recordHead = new RecordHead($this->bufferedRead(5));
+        $handShake = Handshake::resolveFromSocket($this);
+        if ($handShake->handshakeType != Handshake::HANDSHAKE_TYPE_SERVER_HELLO) {
+            throw new ResolveException('不正确的handshake类型：' . $handShake->handshakeType);
+        }
 
-        var_dump($recordHead);
+        /** @var ServerHello $serverHello */
+        $serverHello = $handShake->body;
 
-        switch ($recordHead->contentType) {
-            case Record::CONTENT_TYPE_ALERT:
-                if ($recordHead->fragmentLength != 2) {
-                    throw new FragmentException('Alert消息解析错误');
-                }
-                $alertChars = $this->bufferedRead($recordHead->fragmentLength);
-                $alert = new Alert(ord($alertChars[0]), ord($alertChars[1]));
-                $alert->throwsException();
-                break;
-            case Record::CONTENT_TYPE_HANDSHAKE:
-                $handShake = HandshakeFragment::makeFromBytes($this->bufferedRead($recordHead->fragmentLength));
-                if ($handShake->handshakeType == HandshakeFragment::HANDSHAKE_TYPE_SERVER_HELLO) {
-                    $serverHello = $handShake->body;
-                    if ($serverHello instanceof ServerHello) {
-                        $this->serverRandomStr = $serverHello->randomStr;
-                        $this->cipherSuite = $serverHello->cipherSuite;
-                        $this->compressionMethod = $serverHello->compressionMethod;
-                    }
-                }
-                return $handShake;
-                break;
+        $this->serverRandomStr = $serverHello->randomStr;
+        $this->cipherSuite = $serverHello->cipherSuite;
+        $this->compressionMethod = $serverHello->compressionMethod;
+        return $serverHello;
+    }
+
+    /**
+     * @throws Exceptions\AlertException
+     * @throws Exceptions\SocketIOException
+     * @throws ResolveException
+     */
+    protected function recvServerCertificate()
+    {
+        $handShake = Handshake::resolveFromSocket($this);
+        if ($handShake->handshakeType != Handshake::HANDSHAKE_TYPE_CERTIFICATE) {
+            throw new ResolveException('不正确的handshake类型：' . $handShake->handshakeType);
+        }
+        /** @var ServerCertificate $serverCert */
+        $serverCert = $handShake->body;
+        foreach ($serverCert->certificateList as $cert) {
+            for($i = 0; $i < strlen($cert); $i++) {
+                echo '\x' . dechex(ord($cert[$i]));
+            }
+            echo PHP_EOL;
         }
     }
 }

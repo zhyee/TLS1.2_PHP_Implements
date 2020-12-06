@@ -1,13 +1,20 @@
 <?php
 namespace TLS\Entity\Records;
 
+use TLS\Contracts\Resolvable;
+use TLS\Contracts\StringAble;
 use TLS\Exceptions\AlertException;
 use TLS\Exceptions\FragmentException;
+use TLS\Exceptions\ResolveException;
+use TLS\Exceptions\SocketIOException;
+use TLS\Library\SocketIO;
 
-class Alert
+class Alert implements StringAble, Resolvable
 {
     const LEVEL_WARNING = 1; // 警告级别
     const LEVEL_FATAL = 2;  // 致命错误
+
+    const HEAD_LENGTH = 2;
 
     /**
      * 错误码
@@ -80,23 +87,49 @@ class Alert
 
     /**
      * @return AlertException
-     * @throws FragmentException
+     * @throws ResolveException
      */
     public function toException()
     {
         if (!isset(self::ALERT_DESCRIPTIONS[$this->description])) {
-            throw new FragmentException('错误的Alert description code');
+            throw new ResolveException('错误的Alert description code');
         }
         return new AlertException(self::ALERT_DESCRIPTIONS[$this->description], $this->description);
     }
 
     /**
      * @throws AlertException
-     * @throws FragmentException
+     * @throws ResolveException
      */
     public function throwsException()
     {
         throw $this->toException();
     }
 
+    /**
+     * @param string $string
+     * @return self
+     */
+    public static function resolveFromString(&$string)
+    {
+        return new self(ord($string[0]), ord($string[1]));
+    }
+
+    /**
+     * @return string
+     */
+    public function toByteString()
+    {
+        return pack('CC', $this->level, $this->description);
+    }
+
+    /**
+     * 从Socket中解析出相应实体
+     * @param SocketIO $socket
+     * @return self
+     */
+    public static function resolveFromSocket($socket)
+    {
+        // TODO: Implement resolveFromSocket() method.
+    }
 }
